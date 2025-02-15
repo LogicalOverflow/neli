@@ -68,7 +68,7 @@ fn spawn_processing_thread(socket: Arc<NlSocketHandle>, senders: Senders) -> Pro
                             Ok(m) => {
                                 let seq = *m.nl_seq();
                                 let lock = senders.lock();
-                                if !group.is_empty() {
+                                if !group.is_empty() || seq == 0 {
                                     if multicast_sender.send(Ok(m)).is_err() {
                                         warn!("{}", RouterError::<u16, Buffer>::ClosedChannel);
                                     }
@@ -152,7 +152,7 @@ impl NlRouter {
             NlRouter {
                 socket,
                 senders,
-                seq: Mutex::new(0),
+                seq: Mutex::new(1),
                 exit_sender,
             },
             multicast_receiver,
