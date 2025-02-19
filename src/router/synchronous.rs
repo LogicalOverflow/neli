@@ -247,6 +247,33 @@ impl NlRouter {
         ))
     }
 
+    /// Send multiple messages and return a handle for receiving responses from this message.
+    pub fn send_batch<ST, SP, I>(&self, msgs: I) -> Result<(), RouterError<ST, SP>>
+    where
+        ST: NlType,
+        SP: Size + ToBytes,
+        I: IntoIterator<Item = (ST, NlmF, NlPayload<ST, SP>)>,
+    {
+        let msgs = msgs
+            .into_iter()
+            .map(|(nl_type, nl_flags, nl_payload)| {
+                NlmsghdrBuilder::default()
+                    .nl_type(nl_type)
+                    .nl_flags(
+                        // Required for messages
+                        nl_flags | NlmF::REQUEST,
+                    )
+                    .nl_pid(self.socket.pid())
+                    .nl_seq(self.next_seq())
+                    .nl_payload(nl_payload)
+                    .build()
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        self.socket.send_batch(&msgs)?;
+
+        Ok(())
+    }
+
     fn get_genl_family(&self, family_name: &str) -> GenlFamily {
         let recv = self.send(
             GenlId::Ctrl,

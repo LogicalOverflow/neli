@@ -82,6 +82,27 @@ impl NlSocketHandle {
         Ok(())
     }
 
+    /// Convenience function to send multiple [`Nlmsghdr`] structs
+    pub fn send_batch<T, P>(&self, msgs: &[Nlmsghdr<T, P>]) -> Result<(), SocketError>
+    where
+        T: NlType + Debug,
+        P: Size + ToBytes + Debug,
+    {
+        debug!("Messages sent:\n{:?}", msgs);
+
+        let size = msgs.iter().map(|msg| msg.padded_size()).sum();
+
+        let mut buffer = Cursor::new(vec![0; size]);
+
+        msgs.iter()
+            .map(|msg| msg.to_bytes(&mut buffer))
+            .collect::<Result<(), _>>()?;
+        trace!("Buffer sent: {:?}", buffer.get_ref());
+        self.socket.send(buffer.get_ref(), Msg::empty())?;
+
+        Ok(())
+    }
+
     /// Convenience function to read a stream of [`Nlmsghdr`]
     /// structs one by one using an iterator.
     ///
